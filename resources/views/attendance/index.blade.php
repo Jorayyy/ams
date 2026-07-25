@@ -39,6 +39,8 @@
     @csrf
     <button type="submit" class="nav-btn" style="background: none; border: none; cursor: pointer; font-weight: 600; color: #ef4444;">Logout</button>
 </form>
+        
+         <a href="{{ route('attendance.settings') }}" class="nav-btn">Settings</a>
 
         </div>
     </nav>

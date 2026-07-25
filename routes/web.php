@@ -5,28 +5,22 @@ use App\Http\Controllers\AttendanceController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
-Route::get('/welcome', function () {
-    return view('welcome');
-})->name('welcome');
+Route::get('/', function() {
+    return Auth::check() ? redirect()->route('attendance.index') : redirect()->route('welcome');
+});
+
+Route::get('/welcome', [AttendanceController::class, 'welcome'])->name('welcome');
 
 Route::get('/login', function () {
-    if (Auth::check()) {
-        return redirect()->route('attendance.index');
-    }
-    return view('attendance.login');
+    return Auth::check() ? redirect()->route('attendance.index') : view('attendance.login');
 })->name('login');
 
 Route::post('/login', function (Request $request) {
-    $credentials = $request->validate([
-        'email' => 'required|email',
-        'password' => 'required',
-    ]);
-
+    $credentials = $request->validate(['email' => 'required|email', 'password' => 'required']);
     if (Auth::attempt($credentials)) {
         $request->session()->regenerate();
         return redirect()->intended('/');
     }
-
     return back()->withErrors(['email' => 'The provided credentials do not match our school records.']);
 });
 
@@ -38,7 +32,7 @@ Route::post('/logout', function (Request $request) {
 })->name('logout');
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::get('/dashboard', [AttendanceController::class, 'index'])->name('attendance.index');
     Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
 
     Route::middleware([\App\Http\Middleware\AdminOnly::class])->group(function () {
@@ -49,6 +43,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/students/import', [AttendanceController::class, 'importCSV'])->name('attendance.import_csv');
         Route::get('/reports', [AttendanceController::class, 'reports'])->name('attendance.reports');
         Route::get('/reports/print/{date}', [AttendanceController::class, 'printReport'])->name('attendance.print');
+        
+        // Admin Dynamic Setting Controls Access Channels
+        Route::get('/settings', [AttendanceController::class, 'settings'])->name('attendance.settings');
+        Route::post('/settings', [AttendanceController::class, 'saveSettings'])->name('attendance.save_settings');
     });
-
 });

@@ -9,6 +9,12 @@ use Illuminate\Support\Facades\DB;
 
 class AttendanceController extends Controller
 {
+    public function welcome()
+    {
+        $settings = DB::table('app_settings')->pluck('value', 'key');
+        return view('welcome', compact('settings'));
+    }
+
     public function index(Request $request)
     {
         $date = $request->input('date', date('Y-m-d'));
@@ -17,7 +23,6 @@ class AttendanceController extends Controller
         $searchQuery = $request->input('search');
 
         $query = Student::query();
-
         if ($selectedGrade) {
             $gradeNumber = filter_var($selectedGrade, FILTER_SANITIZE_NUMBER_INT);
             $query->where('grade_level', 'LIKE', '%' . ($gradeNumber ?: $selectedGrade) . '%');
@@ -37,7 +42,6 @@ class AttendanceController extends Controller
             $q->where('attendance_date', $date);
         }])->get();
 
-        // Flag individual students who hit 3 or more total cumulative absences
         foreach ($students as $student) {
             $student->total_absences = Attendance::where('student_id', $student->id)->where('status', 'absent')->count();
         }
@@ -47,14 +51,9 @@ class AttendanceController extends Controller
         $presentCount = Attendance::where('attendance_date', $date)->whereIn('student_id', $students->pluck('id'))->where('status', 'present')->count();
         $absentCount = Attendance::where('attendance_date', $date)->whereIn('student_id', $students->pluck('id'))->where('status', 'absent')->count();
 
-        // Calculate section-by-section stats for the dashboard summary panel
         $sectionPerformance = Attendance::join('students', 'attendances.student_id', '=', 'students.id')
-            ->select('students.section', 
-                DB::raw('count(case when attendances.status = "present" then 1 end) as present_total'),
-                DB::raw('count(*) as combined_total'))
-            ->groupBy('students.section')
-            ->get()
-            ->map(function($item) {
+            ->select('students.section', DB::raw('count(case when attendances.status = "present" then 1 end) as present_total'), DB::raw('count(*) as combined_total'))
+            ->groupBy('students.section')->get()->map(function($item) {
                 $item->rate = $item->combined_total > 0 ? ($item->present_total / $item->combined_total) * 100 : 0;
                 return $item;
             })->sortByDesc('rate');
@@ -68,16 +67,10 @@ class AttendanceController extends Controller
     public function store(Request $request)
     {
         $date = $request->input('attendance_date');
-        $statuses = $request->input('status', []);
-
-        foreach ($statuses as $studentId => $status) {
-            Attendance::updateOrCreate(
-                ['student_id' => $studentId, 'attendance_date' => $date],
-                ['status' => $status]
-            );
+        foreach ($request->input('status', []) as $studentId => $status) {
+            Attendance::updateOrCreate(['student_id' => $studentId, 'attendance_date' => $date], ['status' => $status]);
         }
-
-        return redirect()->to($request->input('redirect_url', '/?date=' . $date))->with('success', 'Attendance tracking logged successfully!');
+        return redirect()->to($request->input('redirect_url', '/dashboard?date=' . $date))->with('success', 'Attendance tracking logged successfully!');
     }
 
     public function students()
@@ -89,77 +82,58 @@ class AttendanceController extends Controller
         return view('attendance.students', compact('students'));
     }
 
-    public function addStudent(Request $request)
-    {
-        $request->validate([
-            'student_number' => 'required|unique:students,student_number',
-            'first_name' => 'required',
-            'last_name' => 'required',
-        ]);
-
-        Student::create($request->all());
-        return redirect()->back()->with('success', 'Student registered into directory!');
-    }
-
-    public function updateStudent(Request $request, $id)
-    {
-        $student = Student::findOrFail($id);
-        $request->validate([
-            'student_number' => 'required|unique:students,student_number,' . $id,
-            'first_name' => 'required',
-            'last_name' => 'required',
-        ]);
-
-        $student->update($request->all());
-        return redirect()->back()->with('success', 'Student information updated successfully!');
-    }
-
-    public function deleteStudent($id)
-    {
-        $student = Student::findOrFail($id);
-        $student->delete(); 
-        return redirect()->back()->with('success', 'Student removed from directory.');
-    }
-
+    public function addStudent(Request $request) { Student::create($request->all()); return redirect()->back()->with('success', 'Student registered!'); }
+    public function updateStudent(Request $request, $id) { Student::findOrFail($id)->update($request->all()); return redirect()->back()->with('success', 'Student details updated!'); }
+    public function deleteStudent($id) { Student::findOrFail($id)->delete(); return redirect()->back()->with('success', 'Student removed.'); }
+    
     public function reports()
     {
-        $historicalReports = Attendance::select('attendance_date',
-            DB::raw('count(case when status = "present" then 1 end) as total_present'),
-            DB::raw('count(case when status = "absent" then 1 end) as total_absent'))
-            ->groupBy('attendance_date')
-            ->orderBy('attendance_date', 'desc')
-            ->get();
-
+        $historicalReports = Attendance::select('attendance_date', DB::raw('count(case when status = "present" then 1 end) as total_present'), DB::raw('count(case when status = "absent" then 1 end) as total_absent'))->groupBy('attendance_date')->orderBy('attendance_date', 'desc')->get();
         return view('attendance.reports', compact('historicalReports'));
     }
 
-    // CSV File Bulk Import Processing Engine Feature
+    public function printReport($date)
+    {
+        $records = Student::with(['attendances' => function($q) use ($date) { $q->where('attendance_date', $date); }])->get();
+        $totalEnrolled = $records->count();
+        $totalPresent = Attendance::where('attendance_date', $date)->where('status', 'present')->count();
+        $totalAbsent = Attendance::where('attendance_date', $date)->where('status', 'absent')->count();
+        return view('attendance.print', compact('records', 'date', 'totalEnrolled', 'totalPresent', 'totalAbsent'));
+    }
+
     public function importCSV(Request $request)
     {
         $request->validate(['csv_file' => 'required|file']);
-        $file = $request->file('csv_file');
-        
-        $handle = fopen($file->getRealPath(), 'r');
-        fgetcsv($handle); // Skips the spreadsheet title header row completely
-
-        $importedCount = 0;
+        $handle = fopen($request->file('csv_file')->getRealPath(), 'r'); fgetcsv($handle);
         while (($row = fgetcsv($handle, 1000, ',')) !== false) {
-            if (!empty($row[0])) {
-                Student::updateOrCreate(
-                    ['student_number' => $row[0]], // Match row by LRN to prevent duplicates
-                    [
-                        'first_name'   => $row[1],
-                        'last_name'    => $row[2],
-                        'grade_level'  => $row[3],
-                        'section'      => $row[4],
-                        'gender'       => $row[5],
-                    ]
-                );
-                $importedCount++;
+            if (!empty($row)) {
+                Student::updateOrCreate(['student_number' => $row], ['first_name' => $row, 'last_name' => $row, 'grade_level' => $row, 'section' => $row, 'gender' => $row]);
             }
         }
         fclose($handle);
+        return redirect()->back()->with('success', 'Students list imported successfully!');
+    }
 
-        return redirect()->back()->with('success', 'Successfully imported ' . $importedCount . ' student profiles!');
+    // Settings Interface Controllers
+    public function settings()
+    {
+        $settings = DB::table('app_settings')->pluck('value', 'key');
+        return view('attendance.settings', compact('settings'));
+    }
+
+    public function saveSettings(Request $request)
+    {
+        DB::table('app_settings')->where('key', 'hero_title')->update(['value' => $request->input('hero_title')]);
+        DB::table('app_settings')->where('key', 'hero_subtitle')->update(['value' => $request->input('hero_subtitle')]);
+
+        if ($request->hasFile('hero_image')) {
+            $file = $request->file('hero_image');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            // Saves locally straight to the public directory block for easy instant processing access
+            $file->move(public_path('uploads'), $filename);
+            DB::table('app_settings')->where('key', 'hero_image')->update(['value' => 'uploads/' . $filename]);
+        }
+
+        return redirect()->back()->with('success', 'System configurations updated immediately!');
     }
 }
