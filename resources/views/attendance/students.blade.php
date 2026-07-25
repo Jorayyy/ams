@@ -8,7 +8,7 @@
         body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 0; }
         .nav-bar { background: white; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; padding: 0 24px; height: 64px; }
         .nav-brand { font-weight: 700; font-size: 1.125rem; color: #0f172a; display: flex; align-items: center; gap: 8px; }
-        .nav-links { display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 10px; }
+        .nav-links { display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 10px; align-items: center; }
         .nav-btn { color: #64748b; font-weight: 500; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 0.875rem; }
         .nav-btn:hover { color: #0f172a; }
         .nav-btn-active { background: white; color: #4f46e5; font-weight: 600; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 0.875rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -22,6 +22,7 @@
         .btn-submit { width: 100%; background: #10b981; color: white; border: none; font-weight: 700; font-size: 0.875rem; padding: 12px; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
         .btn-edit { background: #e0f2fe; color: #0369a1; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 0.75rem; cursor: pointer; }
         .btn-delete { background: #fee2e2; color: #991b1b; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 0.75rem; cursor: pointer; }
+        .icon-svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
     </style>
     <script>
         function toggleEditRow(studentId) {
@@ -41,86 +42,90 @@
 
     <nav class="nav-bar">
         <div class="nav-brand">
-            <span style="background: #4f46e5; color: white; padding: 6px 10px; border-radius: 8px; font-size: 0.875rem;">📋</span>
+            <svg class="icon-svg" style="width:24px; height:24px; stroke:#4f46e5;" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             <span>Sagkahan NHS Tracker</span>
         </div>
         <div class="nav-links">
             <a href="{{ route('attendance.index') }}" class="nav-btn">Dashboard</a>
             <a href="{{ route('attendance.students') }}" class="nav-btn-active">Manage Students</a>
             <a href="{{ route('attendance.reports') }}" class="nav-btn">Reports Ledger</a>
+            <a href="{{ route('attendance.settings') }}" class="nav-btn">Settings</a>
             <form method="POST" action="{{ route('logout') }}" style="display: inline; margin: 0; padding: 0;">
-    @csrf
-    <button type="submit" class="nav-btn" style="background: none; border: none; cursor: pointer; font-weight: 600; color: #ef4444;">Logout</button>
-</form>
-
-        <a href="{{ route('attendance.settings') }}" class="nav-btn">Settings</a>
-
+                @csrf
+                <button type="submit" class="nav-btn" style="background: none; border: none; cursor: pointer; font-weight: 600; color: #ef4444;">Logout</button>
+            </form>
         </div>
     </nav>
 
     <div class="container">
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <!-- Spreadsheet Bulk Import -->
+            <div class="card" style="border-color: #cbd5e1; background: #f8fafc;">
+                <h3 style="font-size: 0.938rem; font-weight: 700; color: #0f172a; margin: 0 0 10px 0; display: flex; align-items: center; gap: 6px;">
+                    <svg class="icon-svg" style="stroke:#4f46e5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span>Spreadsheet Bulk Import</span>
+                </h3>
+                <p style="font-size: 0.715rem; color: #64748b; margin: 0 0 12px 0;">Select a <code>.csv</code> spreadsheet containing student records.</p>
+                
+                <form method="POST" action="{{ route('attendance.import_csv') }}" enctype="multipart/form-data">
+                    @csrf
+                    <input type="file" name="csv_file" accept=".csv" required style="font-size: 0.813rem; color: #475569; margin-bottom: 12px; width: 100%;">
+                    <button type="submit" class="btn-submit" style="background:#4f46e5; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);">
+                        Upload & Populate Registry
+                    </button>
+                </form>
+            </div>
 
-            <!-- Bulk Spreadsheet Upload Box Form Feature -->
-        <div class="card" style="margin-bottom: 20px; border-color: #cbd5e1; background: #f8fafc;">
-            <h3 style="font-size: 0.938rem; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;">📦 Spreadsheet Bulk Import</h3>
-            <p style="font-size: 0.715rem; color: #64748b; margin: 0 0 12px 0;">Select a <code>.csv</code> spreadsheet containing columns for: LRN, First Name, Last Name, Grade, Section, Gender.</p>
-            
-            <form method="POST" action="{{ route('attendance.import_csv') }}" enctype="multipart/form-data">
-                @csrf
-                <input type="file" name="csv_file" accept=".csv" required style="font-size: 0.813rem; color: #475569; margin-bottom: 12px; width: 100%;">
-                <button type="submit" style="width:100%; background:#4f46e5; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.813rem; cursor:pointer;">
-                    Upload & Populate Registry
-                </button>
-            </form>
-        </div>
-
-        
-        <!-- Register Student Form Panel -->
-        <div class="card">
-            <h3 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0 0 16px 0; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">➕ Enrollment Registry</h3>
-            
-            <form method="POST" action="{{ route('attendance.add_student') }}">
-                @csrf
-                <div class="form-group">
-                    <label class="form-label">Learner Reference Number (LRN)</label>
-                    <input type="text" name="student_number" required placeholder="12-digit LRN" class="form-input">
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <!-- Manual Enrollment Form -->
+            <div class="card">
+                <h3 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0 0 16px 0; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                    <svg class="icon-svg" style="stroke:#10b981" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                    <span>Enrollment Registry</span>
+                </h3>
+                
+                <form method="POST" action="{{ route('attendance.add_student') }}">
+                    @csrf
                     <div class="form-group">
-                        <label class="form-label">First Name</label>
-                        <input type="text" name="first_name" required placeholder="First Name" class="form-input">
+                        <label class="form-label">Learner Reference Number (LRN)</label>
+                        <input type="text" name="student_number" required placeholder="12-digit LRN" class="form-input">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">First Name</label>
+                            <input type="text" name="first_name" required placeholder="First Name" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" name="last_name" required placeholder="Last Name" class="form-input">
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Last Name</label>
-                        <input type="text" name="last_name" required placeholder="Last Name" class="form-input">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Grade Level</label>
-                    <select name="grade_level" required class="form-select">
-                        <option value="Grade 7">Grade 7</option><option value="Grade 8">Grade 8</option>
-                        <option value="Grade 9">Grade 9</option><option value="Grade 10">Grade 10</option>
-                        <option value="Grade 11">Grade 11</option><option value="Grade 12">Grade 12</option>
-                    </select>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group">
-                        <label class="form-label">Section</label>
-                        <input type="text" name="section" required placeholder="e.g. Bonifacio" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Gender</label>
-                        <select name="gender" required class="form-select">
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
+                        <label class="form-label">Grade Level</label>
+                        <select name="grade_level" required class="form-select">
+                            <option value="Grade 7">Grade 7</option><option value="Grade 8">Grade 8</option>
+                            <option value="Grade 9">Grade 9</option><option value="Grade 10">Grade 10</option>
+                            <option value="Grade 11">Grade 11</option><option value="Grade 12">Grade 12</option>
                         </select>
                     </div>
-                </div>
-                <button type="submit" class="btn-submit" style="margin-top: 8px;">Register Student Record</button>
-            </form>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">Section</label>
+                            <input type="text" name="section" required placeholder="e.g. Bonifacio" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Gender</label>
+                            <select name="gender" required class="form-select">
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-submit" style="margin-top: 8px;">Register Student Record</button>
+                </form>
+            </div>
         </div>
 
-                <!-- Directory Registry Table -->
+                <!-- Student Directory Ledger Table -->
         <div class="card" style="padding: 0; overflow: hidden;">
             <div style="padding: 24px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
                 <h3 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0;">Comprehensive Student Directory</h3>
@@ -167,7 +172,7 @@
                                 </td>
                             </tr>
 
-                            <!-- Interactive Edit Fields Row Mode -->
+                            <!-- Interactive Edit Row Mode -->
                             <tr id="edit-row-{{ $student->id }}" style="display: none; background: #fafafa; border-bottom: 1px solid #e2e8f0;">
                                 <form method="POST" action="{{ route('attendance.update_student', $student->id) }}">
                                     @csrf @method('PUT')
@@ -199,7 +204,6 @@
                 </table>
             @endif
         </div>
-
     </div>
 </body>
 </html>

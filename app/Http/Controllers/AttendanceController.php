@@ -121,19 +121,29 @@ class AttendanceController extends Controller
         return view('attendance.settings', compact('settings'));
     }
 
-    public function saveSettings(Request $request)
+        public function saveSettings(Request $request)
     {
+        // Enforces strict file checking to allow both jpeg, jpg, and png up to 5MB
+        $request->validate([
+            'hero_image' => 'nullable|image|mimes:jpeg,jpg,png|max:5120',
+        ]);
+
         DB::table('app_settings')->where('key', 'hero_title')->update(['value' => $request->input('hero_title')]);
         DB::table('app_settings')->where('key', 'hero_subtitle')->update(['value' => $request->input('hero_subtitle')]);
 
         if ($request->hasFile('hero_image')) {
             $file = $request->file('hero_image');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            // Saves locally straight to the public directory block for easy instant processing access
+            
+            // Extracts the original extension safely (.jpeg, .jpg, or .png)
+            $extension = $file->getClientOriginalExtension();
+            $filename = time() . '_hero.' . $extension;
+            
+            // Saves locally straight to public directory block
             $file->move(public_path('uploads'), $filename);
             DB::table('app_settings')->where('key', 'hero_image')->update(['value' => 'uploads/' . $filename]);
         }
 
         return redirect()->back()->with('success', 'System configurations updated immediately!');
     }
+
 }

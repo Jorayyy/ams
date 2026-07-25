@@ -8,7 +8,7 @@
         body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 0; }
         .nav-bar { background: white; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; padding: 0 24px; height: 64px; }
         .nav-brand { font-weight: 700; font-size: 1.125rem; color: #0f172a; display: flex; align-items: center; gap: 8px; }
-        .nav-links { display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 10px; }
+        .nav-links { display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 10px; align-items: center; }
         .nav-btn { color: #64748b; font-weight: 500; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 0.875rem; }
         .nav-btn:hover { color: #0f172a; }
         .nav-btn-active { background: white; color: #4f46e5; font-weight: 600; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 0.875rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -20,26 +20,25 @@
         .chart-track { flex-grow: 1; height: 24px; background: #f1f5f9; border-radius: 6px; overflow: hidden; display: flex; }
         .chart-bar-present { height: 100%; background: #10b981; transition: width 0.3s; }
         .chart-bar-absent { height: 100%; background: #ef4444; transition: width 0.3s; }
+        .icon-svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
     </style>
 </head>
 <body>
 
     <nav class="nav-bar">
         <div class="nav-brand">
-            <span style="background: #4f46e5; color: white; padding: 6px 10px; border-radius: 8px; font-size: 0.875rem;">📋</span>
+            <svg class="icon-svg" style="width:24px; height:24px; stroke:#4f46e5;" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             <span>Sagkahan NHS Tracker</span>
         </div>
         <div class="nav-links">
             <a href="{{ route('attendance.index') }}" class="nav-btn">Dashboard</a>
             <a href="{{ route('attendance.students') }}" class="nav-btn">Manage Students</a>
             <a href="{{ route('attendance.reports') }}" class="nav-btn-active">Reports Ledger</a>
+            <a href="{{ route('attendance.settings') }}" class="nav-btn">Settings</a>
             <form method="POST" action="{{ route('logout') }}" style="display: inline; margin: 0; padding: 0;">
-    @csrf
-    <button type="submit" class="nav-btn" style="background: none; border: none; cursor: pointer; font-weight: 600; color: #ef4444;">Logout</button>
-</form>
-
-        <a href="{{ route('attendance.settings') }}" class="nav-btn">Settings</a>
-
+                @csrf
+                <button type="submit" class="nav-btn" style="background: none; border: none; cursor: pointer; font-weight: 600; color: #ef4444;">Logout</button>
+            </form>
         </div>
     </nav>
 
@@ -47,7 +46,10 @@
         
         <!-- Left Side Panel: Visual Chart Trends -->
         <div class="card">
-            <h3 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0 0 4px 0;">Visual Attendance Trends</h3>
+            <h3 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0 0 4px 0; display: flex; align-items: center; gap: 6px;">
+                <svg class="icon-svg" style="stroke:#4f46e5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.003 9.003 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" d="M20.488 9H15V3.512A9.025 9.003 0 0120.488 9z"/></svg>
+                <span>Visual Attendance Trends</span>
+            </h3>
             <p style="font-size: 0.75rem; color: #94a3b8; margin: 0 0 20px 0;">Proportional data comparison bars (<span style="color:#10b981; font-weight:700;">■ Present</span> vs <span style="color:#ef4444; font-weight:700;">■ Absent</span>)</p>
 
             @if($historicalReports->isEmpty())
@@ -100,10 +102,12 @@
                                     <span style="color: #ef4444;">A: {{ $report->total_absent }}</span>
                                 </td>
                                 <td style="padding: 16px 24px; text-align: right;">
-                                    <div style="display: inline-flex; gap: 12px;">
+                                    <div style="display: inline-flex; gap: 12px; align-items: center;">
                                         <a href="{{ route('attendance.index', ['date' => $report->attendance_date]) }}" style="color: #4f46e5; font-weight: 600; text-decoration: none; font-size: 0.813rem;">View</a>
-                                        <!-- Clean direct linking layout to print template window engine -->
-                                        <a href="{{ route('attendance.print', ['date' => $report->attendance_date]) }}" target="_blank" style="color: #10b981; font-weight: 600; text-decoration: none; font-size: 0.813rem;">🖨️ Print Report</a>
+                                        <a href="{{ route('attendance.print', ['date' => $report->attendance_date]) }}" target="_blank" style="color: #10b981; font-weight: 600; text-decoration: none; font-size: 0.813rem; display: inline-flex; align-items: center; gap: 4px;">
+                                            <svg class="icon-svg" style="stroke:#10b981" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-4H7v4a2 2 0 002 2zM17 9V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                            <span>Print Report</span>
+                                        </a>
                                     </div>
                                 </td>
                             </tr>
