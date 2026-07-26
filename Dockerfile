@@ -1,5 +1,4 @@
-# 1. Use the official lightweight PHP Apache environment as our base runtime
-FROM php:8.2-apache
+FROM php:8.3-apache
 
 # 2. Install essential system libraries and SQLite utilities
 RUN apt-get update && apt-get install -y \
