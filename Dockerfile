@@ -1,32 +1,51 @@
-FROM php:8.3-apache
+FROM composer:2.8 as composer
+FROM php:8.4-fpm-alpine
 
-# 2. Install essential system libraries and SQLite utilities
-RUN apt-get update && apt-get install -y \
-    libsqlite3-dev \
+# 1. Install system development libraries for QR codes, PostgreSQL, SQLite, and System Fonts
+RUN apk add --no-cache \
+    nginx \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    sqlite-dev \
+    postgresql-dev \
+    zip \
     unzip \
     git \
-    && docker-php-ext-install pdo pdo_sqlite
+    ttf-dejavu \
+    fontconfig \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo_pgsql pdo_mysql pdo_sqlite gd
 
-# 3. Enable Apache rewrite engine module required by Laravel routing rules
-RUN a2enmod rewrite
+# 2. Securely copy the official Composer binary engine
+COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 
-# 4. Point the Apache public serving root directory straight to Laravel's entry directory
-ENV APACHE_DOCUMENT_ROOT /var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
+WORKDIR /var/www/html
+COPY . .
 
-# 5. Move your local school application source files inside the container working space
-COPY . /var/www/html
+# 3. Inject our custom Nginx port configuration mapping file
+RUN mkdir -p /run/nginx \
+    && cp nginx.conf /etc/nginx/http.d/default.conf
 
-# 6. Install Composer directly inside the image environment build space
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-RUN composer install --no-interaction --optimize-autoloader
+# 4. THE SYSTEM USER ALIGNMENT FIX: Force Nginx to run as www-data globally
+RUN sed -i 's/user nginx;/user www-data;/g' /etc/nginx/nginx.conf || true
 
-# 7. Grant the Apache system user absolute ownership permissions over files to avoid file blocks
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
+# 5. Run standard installation and prepare database directory structure explicitly
+ENV COMPOSER_ALLOW_SUPERUSER=1
+RUN composer install --no-interaction --optimize-autoloader \
+    && mkdir -p database storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs \
+    && rm -f database/database.sqlite \
+    && touch database/database.sqlite
 
-# 8. Open up internal web network container traffic port
-EXPOSE 80
+# 6. Fix permissions so www-data owns absolutely everything cleanly
+RUN chown -R www-data:www-data /var/www/html /run/nginx /var/lib/nginx /var/log/nginx \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database \
+    && chmod 664 /var/www/html/database/database.sqlite
 
-# 9. Clear caches at runtime launch and start the Apache web engine server
-CMD php artisan config:cache && php artisan route:cache && apache2-foreground
+# 7. Expose custom container network line
+EXPOSE 8080
+
+# 8. THE INITIALIZATION FIX: Wrap execution in a native shell to handle migrations and seeders correctly
+CMD ["sh", "-c", "php artisan migrate --force && php artisan config:clear && php artisan cache:clear && php-fpm -D && nginx -g 'daemon off;'"]
+
+
